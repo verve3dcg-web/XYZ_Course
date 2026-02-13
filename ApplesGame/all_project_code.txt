@@ -1,0 +1,909 @@
+﻿--- START FILE: C:\XYZ_CPP\GitXYZ_Course\ApplesGame\Consts.h ---
+#pragma once
+namespace ApplesGame
+{
+	enum class Direction { Right = 0, Up, Left, Down };
+	enum class ObjectType { Apple, Stone };
+
+//	uint32_t gameMod = 0;
+/*
+	enum class GameSettingBits
+	{
+		IsGameInfinite = 1 << 0,
+		IsGameWithAcceleration = 1 << 1,
+		IsHardcoreMode = 1 << 2,
+		IsZenMode = 1 << 3,
+	};
+*/
+	const std::string RESOURCES_PATH = "Resources/";
+
+	const int SCREEN_WIDTH = 800;
+	const int SCREEN_HEIGHT = 600;
+
+	// Player constants
+	const float INITIAL_SPEED = 100.f;
+	const float PLAYER_SIZE = 20.f;
+	const float PLAYER_ACCELERATION = 5.f;// Режим ускорения
+	const float PLAYER_POSITION_X = SCREEN_WIDTH / 2.f;
+	const float PLAYER_POSITION_Y = SCREEN_HEIGHT / 2.f;
+
+	// Objects constants
+	// Диапазон
+	const int MIN_OBJECTS = 20;
+	const int MAX_OBJECTS = 50;
+	// Процент яблок от всех геймобджектов
+	const float PERCENT_APPLES = 0.7f;
+	// шанс выпадения спец яблок
+	const int DROPOUT_APPLES_SPECIAL = 10;
+
+	const int NUM_APPLES = 25;// используется в режиме ограниченных яблок
+	const float APPLE_SIZE = 20.f;
+	const int NUM_APPLES_SPECIAL = 5;
+	const int SCORES_SIMPLE_APPLE = 2;
+	const int SCORES_SPECIAL_APPLE = 7;
+
+	const int NUM_STONE = 8;// используется в режиме ограниченных яблок
+	const int STONE_SIZE = 30;
+	const int TOTAL_OBJECTS = NUM_APPLES + NUM_STONE;// используется в режиме ограниченных яблок
+
+	// Sound
+	const std::string SOUND_EAT_PATH = RESOURCES_PATH + "AppleEat.wav";
+	const std::string SOUND_DEATH_PATH = RESOURCES_PATH + "Death.wav";
+	const std::string MUSIC_THEME_PATH = RESOURCES_PATH + "Music.ogg";
+
+	// Game State constants
+	const float PAUSE_LENGTH = 2.f;
+}
+
+--- END FILE ---
+
+--- START FILE: C:\XYZ_CPP\GitXYZ_Course\ApplesGame\Game.cpp ---
+#pragma once
+#include "Game.h"
+#include "Sound.h"
+
+namespace ApplesGame
+{
+    Position2D GetRandomFreePosition(const Game& Stat, const Position2D& Position2, float objectSize)
+    {
+
+        Position2D newPos;
+        bool isOverlapping = true;
+
+        while (isOverlapping)
+        {
+            isOverlapping = false;
+
+            newPos.x = (rand() / (float)RAND_MAX) * (SCREEN_WIDTH - objectSize) + objectSize / 2.f;
+            newPos.y = (rand() / (float)RAND_MAX) * (SCREEN_HEIGHT - objectSize) + objectSize / 2.f;
+
+            if (IsOverlapping(newPos, objectSize / 2.f, Position2, PLAYER_SIZE*2))
+            {
+                isOverlapping = true;
+                continue;
+            }
+
+            for (int i = 0; i < Stat.objects.size(); ++i)
+            {
+
+                if (Stat.objects[i].position.x == 0 && Stat.objects[i].position.y == 0) continue;
+
+                float otherSize = (Stat.objects[i].type == ObjectType::Stone) ? STONE_SIZE : APPLE_SIZE;
+
+                if (IsOverlapping(newPos, objectSize / 2.f, Stat.objects[i].position, otherSize / 2.f))
+                {
+                    isOverlapping = true;
+                    break;
+                }
+            }
+        }
+        return newPos;
+    }
+
+    void InitGame(Game& Stat, PlayerStat& playerStat, GraphicResource& graphicResource, AudioResource& audioResource)
+    {
+        InitGraphicResource(graphicResource);
+        InitAudio(audioResource);
+        RestartGame(Stat, playerStat, graphicResource);
+
+    }
+    void RestartGame(Game& Stat, PlayerStat& playerStat, GraphicResource& graphicResource)
+    {
+        Stat = Game();
+        playerStat = PlayerStat();
+        InitPlayer(playerStat, graphicResource);
+        InitGameObjects(Stat, playerStat, graphicResource);
+    }
+    void GameUpdate(Game& Stat, float deltaTime, float currentTime, PlayerStat& playerStat, AudioResource& audio)
+    {
+
+        // Input handling inside update
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) playerStat.playerDirection = Direction::Right;
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) playerStat.playerDirection = Direction::Up;
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left)) playerStat.playerDirection = Direction::Left;
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) playerStat.playerDirection = Direction::Down;
+
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) playerStat.playerDirection = Direction::Right;
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) playerStat.playerDirection = Direction::Up;
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) playerStat.playerDirection = Direction::Left;
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) playerStat.playerDirection = Direction::Down;
+
+        // Movement
+        switch (playerStat.playerDirection)
+        {
+        case Direction::Right: playerStat.playerPosition2D.x += playerStat.playerSpeed * deltaTime; break;
+        case Direction::Up:    playerStat.playerPosition2D.y -= playerStat.playerSpeed * deltaTime; break;
+        case Direction::Left:  playerStat.playerPosition2D.x -= playerStat.playerSpeed * deltaTime; break;
+        case Direction::Down:  playerStat.playerPosition2D.y += playerStat.playerSpeed * deltaTime; break;
+        }
+
+        // Check screen borders
+        if (playerStat.playerPosition2D.x - PLAYER_SIZE / 2.f < 0.f ||
+            playerStat.playerPosition2D.x + PLAYER_SIZE / 2.f > SCREEN_WIDTH ||
+            playerStat.playerPosition2D.y - PLAYER_SIZE / 2.f < 0.f ||
+            playerStat.playerPosition2D.y + PLAYER_SIZE / 2.f > SCREEN_HEIGHT)
+        {
+            Stat.isGameFinished = true;
+            Stat.gameFinishTime = currentTime;
+            PlayDeathSound(audio);
+        }
+        int applesAlife = 0;
+        // Check collisions
+        for (int i = 0; i < Stat.objects.size(); ++i)
+        {
+            if (Stat.objects[i].status == true)
+            {
+                ++applesAlife;
+            }
+            
+            float objSize = (Stat.objects[i].type == ObjectType::Stone) ? STONE_SIZE : APPLE_SIZE;
+
+            if (IsOverlapping(playerStat.playerPosition2D, PLAYER_SIZE / 2.f, Stat.objects[i].position, objSize / 2.f))
+            {
+                if (Stat.objects[i].type == ObjectType::Stone)
+                {
+                    Stat.isGameFinished = true;
+                    Stat.gameFinishTime = currentTime;
+                    PlayDeathSound(audio);
+                    break;
+                }
+                else if (Stat.objects[i].type == ObjectType::Apple)
+                {
+                    if (Stat.objects[i].status == true)
+                    {
+                        PlayEatSound(audio);
+                        playerStat.playerStatistic.scores += Stat.objects[i].scores;
+                        playerStat.playerStatistic.numEatenApple++;
+                        Stat.objects[i].status = false;
+
+                        //check game mod Increase Speed
+                        float IncreaseSpeed = (Stat.currentMode & IsIncreaseSpeed) ? PLAYER_ACCELERATION : 0.0f;
+                        playerStat.playerSpeed += IncreaseSpeed;
+                        // Respawn apple
+ 
+                        if (Stat.currentMode == IsGameInfinite)
+                        {
+                            Stat.objects[i].position = { 0.f, 0.f };
+                            Stat.objects[i].position = GetRandomFreePosition(Stat, playerStat.playerPosition2D, APPLE_SIZE);
+                            Stat.objects[i].shape.setPosition(Stat.objects[i].position.x, Stat.objects[i].position.y);
+                            Stat.objects[i].status = true;
+                        }
+                    }
+                }
+            }
+        }
+        if (applesAlife == 0)
+        {
+            Stat.isGameFinished = true;
+            Stat.gameFinishTime = currentTime;
+            PlayDeathSound(audio);
+        }
+
+    }
+
+    void GameDraw(Game& Stat, sf::RenderWindow& window, const sf::RectangleShape& background, PlayerStat& playerStat)
+    {
+        window.clear();
+        window.draw(background);
+        DrowPlayer(playerStat, window);
+        for (int i = 0; i < Stat.objects.size(); ++i) {
+            if (Stat.objects[i].type == ObjectType::Apple && Stat.objects[i].status == false)
+            {
+
+            }
+            else
+            {
+                Stat.objects[i].sprite.setPosition(Stat.objects[i].position.x, Stat.objects[i].position.y);
+                window.draw(Stat.objects[i].sprite);
+            }
+
+        }
+
+        
+       // window.display();
+    }
+}
+--- END FILE ---
+
+--- START FILE: C:\XYZ_CPP\GitXYZ_Course\ApplesGame\Game.h ---
+#pragma once
+#include <SFML/Graphics.hpp>
+#include "math.h"
+#include "consts.h"
+#include "GameObject.h"
+#include "player.h"
+#include "Graphic.h"
+#include "Sound.h"
+
+namespace ApplesGame
+{
+    typedef unsigned char GameModeMask;
+
+    enum GameMode : GameModeMask {
+        IsModeNone = 0,// Статический геймплей
+        IsGameInfinite = 1 << 0, // 1: Бесконечные яблоки
+        IsIncreaseSpeed = 1 << 1, // 2: Увеличение скорости
+        IsRandomApples = 1 << 2, // 4: Двойная скорость и ускорение
+        //Mode_DoubleScore = 1 << 3  // 8: Двойные очки за яблоки
+    };
+
+    struct Game
+    {
+        // Добавляем переменную для хранения маски режимов
+        GameModeMask currentMode = IsModeNone;
+        //GameObject objects[TOTAL_OBJECTS];
+        std::vector<GameObject> objects;
+
+        bool isGameFinished = false;
+        bool IsPaused = false;
+        bool isRestarted = false;
+        float gameFinishTime = 0.f;
+        float restartTime = 0.f;
+    };
+    
+ 
+    Position2D GetRandomFreePosition(const Game& Stat, const Position2D& Position2, float objectSize);
+    void InitGame(Game& Stat, PlayerStat& playerStat, GraphicResource& graphicResource, AudioResource& audioResource);
+    void RestartGame(Game& Stat, PlayerStat& playerStat, GraphicResource& graphicResource);
+    void GameUpdate(Game& Stat, float deltaTime, float currentTime, PlayerStat& playerStat, AudioResource& audio);
+    void GameDraw(Game& GameStat, sf::RenderWindow& window, const sf::RectangleShape& background, PlayerStat& playerStat);
+    
+}
+--- END FILE ---
+
+--- START FILE: C:\XYZ_CPP\GitXYZ_Course\ApplesGame\GameMain.cpp ---
+
+#pragma once
+#include <SFML/Graphics.hpp>
+#include <ctime>
+#include "consts.h"
+#include "Game.h"
+#include "Sound.h"
+#include "UI.h"
+
+namespace ApplesGame
+{
+bool bIsPaused = false;
+
+void EventInput(sf::RenderWindow& window, Game& gameStat, float currentTime, PlayerStat& playerStat, GraphicResource& graphicResource)
+{
+    sf::Event event;
+    while (window.pollEvent(event))
+    {
+        if (event.type == sf::Event::Closed)
+        {
+            window.close();
+        }
+        if (event.type == sf::Event::KeyPressed)
+        {
+            if (event.key.code == sf::Keyboard::Escape)
+            {
+                window.close();
+            }
+            else if (event.key.code == sf::Keyboard::Space)
+            {
+                gameStat.IsPaused = !gameStat.IsPaused;
+                bIsPaused = !bIsPaused;
+            }
+            else if (event.key.code == sf::Keyboard::R)
+            {
+                RestartGame(gameStat, playerStat, graphicResource);
+                gameStat.isRestarted = true;
+                gameStat.restartTime = currentTime;
+                bIsPaused = false;
+                gameStat.IsPaused = false;
+            }
+            if (event.key.code == sf::Keyboard::Q)
+            {
+                // Просто увеличиваем число на 1
+                gameStat.currentMode++;
+
+                // Если вышли за пределы (сумма всех флагов = 15 или 00001111), сбрасываем
+                if (gameStat.currentMode > 15)
+                {
+                    gameStat.currentMode = IsModeNone;
+                }
+            }
+            // Переключение режимов
+            if (event.key.code == sf::Keyboard::Num1) // Клавиша 1
+            {
+                gameStat.currentMode ^= IsModeNone; // Переключить бит бессмертия
+            }
+            else if (event.key.code == sf::Keyboard::Num2) // Клавиша 2
+            {
+                gameStat.currentMode ^= IsGameInfinite; // Переключить бит стен
+            }
+            else if (event.key.code == sf::Keyboard::Num3) // Клавиша 3
+            {
+                gameStat.currentMode ^= IsIncreaseSpeed;
+            }
+            else if (event.key.code == sf::Keyboard::Num4) // Клавиша 4
+            {
+                gameStat.currentMode ^= IsRandomApples;
+            }
+        }
+    }
+}
+}
+
+
+int main()
+{
+    using namespace ApplesGame;
+
+    // Init Window
+    sf::RenderWindow window(sf::VideoMode(SCREEN_WIDTH, SCREEN_HEIGHT), "Apples game");
+
+    // Background setup
+    sf::RectangleShape background;
+    background.setSize(sf::Vector2f(SCREEN_WIDTH, SCREEN_HEIGHT));
+    background.setFillColor(sf::Color::Black);
+    background.setPosition(0.f, 0.f);
+
+    // Random seed
+    int seed = (int)time(nullptr);
+    srand(seed);
+
+    // Init Game State
+    Game gameStat;
+    PlayerStat playerStat;
+    GraphicResource graphicResource;
+    AudioResource audioResource;
+
+    // --- НАЧАЛО ВСТАВКИ ---
+    sf::Font font;
+    // Убедитесь, что путь к шрифту правильный. Обычно в XYZ проектах это:
+    if (!font.loadFromFile(RESOURCES_PATH + "Fonts/Roboto-Regular.ttf"))
+    {
+        // Если шрифта нет, программа закроется с ошибкой, чтобы вы заметили проблему
+        return -1;
+    }
+    UIState uiState;
+    InitUI(uiState, font);
+    // --- КОНЕЦ ВСТАВКИ ---
+
+    InitGame(gameStat, playerStat, graphicResource, audioResource);
+
+    // Clock
+    sf::Clock gameClock;
+    float lastTime = gameClock.getElapsedTime().asSeconds();
+
+    while (window.isOpen())
+    {
+        // Reduce framerate to not spam CPU and GPU
+        sf::sleep(sf::milliseconds(16));
+        float currentTime = gameClock.getElapsedTime().asSeconds();
+        float deltaTime = currentTime - lastTime;
+        lastTime = currentTime;
+
+        EventInput(window, gameStat, currentTime, playerStat, graphicResource);
+
+        if (gameStat.isRestarted)
+        {
+
+            if (currentTime - gameStat.restartTime < 0.5f)
+            {
+                background.setFillColor(sf::Color::Blue);
+            }
+            else
+            {
+                gameStat.isRestarted = false;
+                background.setFillColor(sf::Color::Black);
+            }
+        }
+        else if (gameStat.isGameFinished)
+        {
+            background.setFillColor(sf::Color::Red);
+            if (currentTime - gameStat.gameFinishTime > PAUSE_LENGTH)
+            {
+                RestartGame(gameStat, playerStat, graphicResource);
+            }
+        }
+        else
+        {
+            background.setFillColor(sf::Color::Black);
+            if (!gameStat.IsPaused)
+            {
+                GameUpdate(gameStat, deltaTime, currentTime, playerStat, audioResource);
+                UpdateUI(uiState, gameStat, playerStat);
+            }
+        }
+
+
+        GameDraw(gameStat, window, background, playerStat);
+        DrawUI(uiState, window, gameStat);
+        window.display();
+    }
+
+    return 0;
+}
+--- END FILE ---
+
+--- START FILE: C:\XYZ_CPP\GitXYZ_Course\ApplesGame\GameObject.cpp ---
+#pragma once
+#include "GameObject.h"
+#include "Game.h"
+
+#include <cstdlib>
+
+namespace ApplesGame
+{
+	int numApples;
+	int numStones;
+
+	void InitSprite(sf::Sprite& sprite, sf::Texture& Texture, float gameObjectSize)
+	{
+		sprite.setTexture(Texture);
+		SetSpriteSize(sprite, gameObjectSize, gameObjectSize);
+		SetSpriteRelativeOrigin(sprite, 0.5f, 0.5f);
+	}
+	void InitGameObjects(Game& Stat, const PlayerStat& playerStat, GraphicResource& graphicResource)
+	{
+		//int totalObjectsCount = CalculationArrayObjects(Stat);
+		//GameObject* arrayGameObjects = new GameObject[totalObjectsCount];
+		int totalObjectsCount = CalculationGameObjects(Stat);
+		
+		for (int i = 0; i < totalObjectsCount; ++i)
+		{
+			float size;
+			if (i < numStones) //
+			{
+				Stat.objects[i].type = ObjectType::Stone;
+				Stat.objects[i].scores = 0;
+				size = STONE_SIZE;
+				InitSprite(Stat.objects[i].sprite, graphicResource.stoneTexture, size);
+			}
+			else
+			{
+				Stat.objects[i].type = ObjectType::Apple;
+				Stat.objects[i].status = true;
+				size = APPLE_SIZE;
+				//
+				if (rand() % 100 < DROPOUT_APPLES_SPECIAL)
+				{
+					Stat.objects[i].scores = SCORES_SPECIAL_APPLE;
+					InitSprite(Stat.objects[i].sprite, graphicResource.appleSpecialTexture, size);
+				}
+				else
+				{
+					Stat.objects[i].scores = SCORES_SIMPLE_APPLE;
+					InitSprite(Stat.objects[i].sprite, graphicResource.appleTexture, size);
+				}
+			}
+
+			
+			Stat.objects[i].position = GetRandomFreePosition(Stat, playerStat.playerPosition2D, size);
+			Stat.objects[i].sprite.setPosition(Stat.objects[i].position.x, Stat.objects[i].position.y);
+		}
+		return;
+	}
+
+	void DrowGameObjects(GameObject& objectStat, sf::RenderWindow& window)
+	{
+		objectStat.sprite.setPosition(objectStat.position.x, objectStat.position.y);
+		window.draw(objectStat.sprite);
+	}
+
+	int CalculationGameObjects(Game& Stat)
+	{
+		int totalObjectsCount = MIN_OBJECTS + rand() % MAX_OBJECTS;
+		numApples = static_cast<int>(totalObjectsCount * PERCENT_APPLES);
+		numStones = totalObjectsCount - numApples;
+
+		Stat.objects.clear();
+		Stat.objects.resize(totalObjectsCount);
+
+		return totalObjectsCount;
+
+	}
+	/*
+	int CalculationArrayObjects(Game& Stat)
+	{
+		int totalObjectsCount = MIN_OBJECTS + rand() % MAX_OBJECTS;
+		numApples = static_cast<int>(totalObjectsCount * PERCENT_APPLES);
+		numStones = totalObjectsCount - numApples;
+		return totalObjectsCount;
+
+	}*/
+}
+--- END FILE ---
+
+--- START FILE: C:\XYZ_CPP\GitXYZ_Course\ApplesGame\GameObject.h ---
+#pragma once
+#include <SFML/Graphics.hpp>
+#include "math.h"
+#include "consts.h"
+#include "player.h"
+#include "Graphic.h"
+
+namespace ApplesGame
+{
+    struct Game;
+
+    struct GameObject
+    {
+        ObjectType type;
+        Position2D position;
+        sf::CircleShape shape;
+        int scores = 0;
+        sf::Sprite sprite;
+        bool status = false;
+    };
+
+    //int* gameObjectsArray = new int[TOTAL_OBJECTS];
+
+    void InitGameObjects(Game& Stat, const PlayerStat& playerStat, GraphicResource& graphicResource);
+    void DrowGameObjects(GameObject& objectStat, sf::RenderWindow& window);
+    int CalculationGameObjects(Game& Stat);
+}
+--- END FILE ---
+
+--- START FILE: C:\XYZ_CPP\GitXYZ_Course\ApplesGame\Graphic.cpp ---
+#include "Graphic.h"
+#include <cassert>
+#include "Consts.h"
+
+namespace ApplesGame
+{
+	void InitGraphicResource(GraphicResource& graphicResource)
+	{
+		assert(graphicResource.playerTexture.loadFromFile(RESOURCES_PATH + "\\Player.png"));
+		assert(graphicResource.appleTexture.loadFromFile(RESOURCES_PATH + "\\Apple.png"));
+		assert(graphicResource.appleSpecialTexture.loadFromFile(RESOURCES_PATH + "\\AppleSpecial.png"));
+		assert(graphicResource.stoneTexture.loadFromFile(RESOURCES_PATH + "\\Rock.png"));
+	}
+	void SetSpriteSize(sf::Sprite& sprite, float desiredWidth, float desiredHeight)
+	{
+		sf::FloatRect  spriteRect  = sprite.getLocalBounds();
+		sf::Vector2f scale = { desiredWidth / spriteRect.width, desiredHeight / spriteRect.height };
+		sprite.setScale(scale);
+	}
+	void SetSpriteRelativeOrigin(sf::Sprite& sprite, float originX, float originY)
+	{
+		sf::FloatRect spriteRect = sprite.getLocalBounds();
+		sprite.setOrigin(originX * spriteRect.width, originY * spriteRect.height);
+	}
+}
+--- END FILE ---
+
+--- START FILE: C:\XYZ_CPP\GitXYZ_Course\ApplesGame\Graphic.h ---
+#pragma once
+#include <SFML/Graphics.hpp>
+
+namespace ApplesGame
+{
+    struct GraphicResource
+    {
+        sf::Texture playerTexture;
+        sf::Texture appleTexture;
+        sf::Texture appleSpecialTexture;
+        sf::Texture stoneTexture;
+    };
+    void InitGraphicResource(GraphicResource& graphicResource);
+    void InitSprite(sf::Sprite& sprite, sf::Texture& Texture, float gameObjectSize);
+    void SetSpriteSize(sf::Sprite& sprite, float desiredWidth, float desiredHeight);
+    void SetSpriteRelativeOrigin(sf::Sprite& sprite, float originX, float originY);
+}
+--- END FILE ---
+
+--- START FILE: C:\XYZ_CPP\GitXYZ_Course\ApplesGame\Math.cpp ---
+#pragma once
+#include "math.h"
+namespace ApplesGame
+{
+    bool IsOverlapping(Position2D Position1, float radius1, Position2D Position2, float radius2)
+    {
+        float dx = Position1.x - Position2.x;
+        float dy = Position1.y - Position2.y;
+        float distanceSq = dx * dx + dy * dy;
+        float radiusSum = radius1 + radius2;
+        return distanceSq < (radiusSum * radiusSum);
+    }
+}
+--- END FILE ---
+
+--- START FILE: C:\XYZ_CPP\GitXYZ_Course\ApplesGame\Math.h ---
+#pragma once
+namespace ApplesGame
+{
+    struct Vector2D
+    {
+        float x = 0;
+        float y = 0;
+    };
+    typedef Vector2D Position2D;
+    bool IsOverlapping(Position2D Position1, float radius1, Position2D Position2, float radius2);
+
+}
+--- END FILE ---
+
+--- START FILE: C:\XYZ_CPP\GitXYZ_Course\ApplesGame\Player.cpp ---
+#pragma once
+#include "player.h"
+#include "Game.h"
+#include "GameObject.h"
+#include <cstdlib>
+
+
+namespace ApplesGame
+{
+    void InitPlayer(PlayerStat& playerStat, GraphicResource& graphicResource)
+    {
+
+        // Init player sprite
+        playerStat.Sprite.setTexture(graphicResource.playerTexture);
+        SetSpriteSize(playerStat.Sprite, PLAYER_SIZE, PLAYER_SIZE);
+        SetSpriteRelativeOrigin(playerStat.Sprite, 0.5f, 0.5f);
+    }
+    void DrowPlayer(PlayerStat& playerStat, sf::RenderWindow& window)
+    {
+        playerStat.Sprite.setPosition(playerStat.playerPosition2D.x, playerStat.playerPosition2D.y);
+
+        float scaleX = PLAYER_SIZE / playerStat.Sprite.getLocalBounds().width;
+        float scaleY = PLAYER_SIZE / playerStat.Sprite.getLocalBounds().height;
+
+        switch (playerStat.playerDirection)
+        {
+        case Direction::Up:
+            playerStat.Sprite.setScale(scaleX, scaleY);
+            playerStat.Sprite.setRotation(-90.f);
+                break;
+
+        case Direction::Right:
+            playerStat.Sprite.setScale(scaleX, scaleY);
+            playerStat.Sprite.setRotation(0.f);
+                break;
+
+        case Direction::Down:
+            playerStat.Sprite.setScale(scaleX, scaleY);
+            playerStat.Sprite.setRotation(90.f);
+                break;
+
+        case Direction::Left:
+
+            playerStat.Sprite.setScale(-scaleX, scaleY);
+            playerStat.Sprite.setRotation(0.f);
+                break;
+        }
+
+        window.draw(playerStat.Sprite);
+    }
+}
+--- END FILE ---
+
+--- START FILE: C:\XYZ_CPP\GitXYZ_Course\ApplesGame\Player.h ---
+#pragma once
+#include <SFML/Graphics.hpp>
+#include "consts.h"
+#include "math.h"
+#include "Graphic.h"
+namespace ApplesGame
+{
+    // Player statistic
+    struct PlayerStatistic
+    {
+        int scores = 0;
+        int numEatenApple = 0;
+        float gameTime = 0;
+    };
+    struct PlayerStat
+    {
+        // Player data
+        PlayerStatistic playerStatistic;
+        Position2D playerPosition2D = { PLAYER_POSITION_X, PLAYER_POSITION_Y };
+        float playerSpeed = INITIAL_SPEED;
+        Direction playerDirection = Direction::Right;
+        sf::Sprite Sprite;
+    };
+
+    void InitPlayer(PlayerStat& playerStat, GraphicResource& graphicResource);
+    void DrowPlayer(PlayerStat& playerStat, sf::RenderWindow& windo);
+}
+--- END FILE ---
+
+--- START FILE: C:\XYZ_CPP\GitXYZ_Course\ApplesGame\Sound.cpp ---
+#include "Sound.h"
+#include "Consts.h"
+#include <iostream>
+
+namespace ApplesGame
+{
+    void InitAudio(AudioResource& resource)
+    {
+
+        if (!resource.eatBuffer.loadFromFile(SOUND_EAT_PATH)) {
+            std::cerr << "Failed to load eat sound!" << std::endl;
+        }
+        if (!resource.deathBuffer.loadFromFile(SOUND_DEATH_PATH)) {
+            std::cerr << "Failed to load death sound!" << std::endl;
+        }
+
+
+        resource.eatSound.setBuffer(resource.eatBuffer);
+        resource.deathSound.setBuffer(resource.deathBuffer);
+
+
+        resource.eatSound.setVolume(20.f);
+        resource.deathSound.setVolume(20.f);
+
+        if (!resource.music.openFromFile(MUSIC_THEME_PATH)) {
+            std::cerr << "Failed to load music!" << std::endl;
+        }
+        else {
+            resource.music.setLoop(true);
+            resource.music.setVolume(10.f);
+        }
+
+        resource.music.play();
+    }
+
+    void PlayEatSound(AudioResource& resource)
+    {
+        resource.eatSound.play();
+    }
+
+    void PlayDeathSound(AudioResource& resource)
+    {
+        resource.deathSound.play();
+    }
+}
+--- END FILE ---
+
+--- START FILE: C:\XYZ_CPP\GitXYZ_Course\ApplesGame\Sound.h ---
+#pragma once
+#include <SFML/Audio.hpp>
+
+namespace ApplesGame
+{
+    struct AudioResource
+    {
+        sf::SoundBuffer eatBuffer;
+        sf::SoundBuffer deathBuffer;
+
+        sf::Sound eatSound;
+        sf::Sound deathSound;
+
+        sf::Music music;
+    };
+
+    void InitAudio(AudioResource& resource);
+    void PlayEatSound(AudioResource& resource);
+    void PlayDeathSound(AudioResource& resource);
+}
+--- END FILE ---
+
+--- START FILE: C:\XYZ_CPP\GitXYZ_Course\ApplesGame\UI.cpp ---
+#include "UI.h"
+#include "Game.h"
+#include "Player.h"
+#include <string>
+
+namespace ApplesGame
+{
+	void InitUI(UIState& uiState, const sf::Font& font)
+	{
+
+		uiState.scoreText.setFont(font);
+		uiState.scoreText.setCharacterSize(12);
+		uiState.scoreText.setFillColor(sf::Color::Yellow);
+		uiState.scoreText.setString("Scores: 0");
+
+
+		uiState.inputHintText.setFont(font);
+		uiState.inputHintText.setCharacterSize(12);
+		uiState.inputHintText.setFillColor(sf::Color::White);
+		uiState.inputHintText.setString("Use arrows to move, ESC to exit");
+
+		sf::FloatRect hintBounds = uiState.inputHintText.getLocalBounds();
+		uiState.inputHintText.setOrigin(hintBounds.left + hintBounds.width, hintBounds.top);
+
+		uiState.inputControlText.setFont(font);
+		uiState.inputControlText.setCharacterSize(12);
+		uiState.inputControlText.setFillColor(sf::Color::White);
+		uiState.inputControlText.setString("R - Restart, WASD - Direction, Space - Pause");
+
+		uiState.inputControlText.setOrigin(hintBounds.left + hintBounds.width, hintBounds.top);
+
+
+		uiState.gameStatusText.setFont(font);
+		uiState.gameStatusText.setCharacterSize(72);
+		uiState.gameStatusText.setStyle(sf::Text::Bold);
+		uiState.gameStatusText.setFillColor(sf::Color::Yellow);
+		uiState.gameStatusText.setString("GAME STATUS");
+
+
+		sf::FloatRect goBounds = uiState.gameStatusText.getLocalBounds();
+		uiState.gameStatusText.setOrigin(goBounds.left + goBounds.width / 2.0f,
+			goBounds.top + goBounds.height / 2.0f);
+	}
+
+	void UpdateUI(UIState& uiState, const Game& game, const PlayerStat& playerStat)
+	{
+		//uiState.scoreText.setString("Scores: " + std::to_string(playerStat.playerStatistic.scores));
+		std::string scoreStr = "Scores: " + std::to_string(playerStat.playerStatistic.scores);
+		// Добавляем индикацию режимов
+		std::string modesStr = " | Modes: ";
+		if (game.currentMode == IsModeNone) modesStr += "{Normal}";
+		if (game.currentMode & IsGameInfinite) modesStr += "[IsGameInfinite] ";
+		if (game.currentMode & IsIncreaseSpeed) modesStr += "[IsIncreaseSpeed] ";
+		if (game.currentMode & IsRandomApples) modesStr += "[IsRandomApples] ";
+		uiState.scoreText.setString(scoreStr + modesStr);
+	}
+
+	void ApplesGame::DrawUI(UIState& uiState, sf::RenderWindow& window, Game& gameStat)
+	{
+		uiState.scoreText.setPosition(10.f, 10.f);
+		window.draw(uiState.scoreText);
+
+		uiState.inputHintText.setPosition(window.getSize().x - 100.f, 10.f);
+		window.draw(uiState.inputHintText);
+
+		uiState.inputControlText.setPosition(window.getSize().x - 100.f, 25.f);
+		window.draw(uiState.inputControlText);
+
+		uiState.gameStatusText.setPosition(window.getSize().x / 2.f, window.getSize().y / 2.f);
+
+		if (gameStat.isGameFinished)
+		{
+			uiState.gameStatusText.setFillColor(sf::Color::Yellow);
+			uiState.gameStatusText.setString("GAME OVER");
+			window.draw(uiState.gameStatusText);
+		}
+		if (gameStat.IsPaused)
+		{
+			uiState.gameStatusText.setFillColor(sf::Color::White);
+			uiState.gameStatusText.setString("/<<PAUSE>>/");
+			window.draw(uiState.gameStatusText);
+		}
+	}
+}
+--- END FILE ---
+
+--- START FILE: C:\XYZ_CPP\GitXYZ_Course\ApplesGame\UI.h ---
+#pragma once
+#include <SFML/Graphics.hpp>
+
+namespace ApplesGame
+{
+
+	struct Game;
+	struct PlayerStat;
+
+	struct UIState
+	{
+		sf::Text scoreText;
+		sf::Text inputHintText;
+		sf::Text inputControlText;
+		sf::Text gameStatusText;
+	};
+
+
+	void InitUI(UIState& uiState, const sf::Font& font);
+
+
+	void UpdateUI(UIState& uiState, const Game& game, const PlayerStat& playerStat);
+
+	void DrawUI(UIState& uiState, sf::RenderWindow& window, Game& gameStat);
+}
+--- END FILE ---
+
