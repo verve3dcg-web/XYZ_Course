@@ -6,82 +6,57 @@
 
 namespace ApplesGame
 {
-	int numApples;
-	int numStones;
-
-	void InitSprite(sf::Sprite& sprite, sf::Texture& Texture, float gameObjectSize)
-	{
-		sprite.setTexture(Texture);
-		SetSpriteSize(sprite, gameObjectSize, gameObjectSize);
-		SetSpriteRelativeOrigin(sprite, 0.5f, 0.5f);
-	}
 	void InitGameObjects(Game& Stat, const PlayerStat& playerStat, GraphicResource& graphicResource)
 	{
-		//int totalObjectsCount = CalculationArrayObjects(Stat);
-		//GameObject* arrayGameObjects = new GameObject[totalObjectsCount];
-		int totalObjectsCount = CalculationGameObjects(Stat);
-		
-		for (int i = 0; i < totalObjectsCount; ++i)
+		// clear position
+		for (int i = 0; i < TOTAL_OBJECTS; ++i) Stat.objects[i].position = { 0, 0 };
+
+		for (int i = 0; i < TOTAL_OBJECTS; ++i)
 		{
 			float size;
-			if (i < numStones) //
+			if (i < NUM_STONE)
 			{
 				Stat.objects[i].type = ObjectType::Stone;
-				Stat.objects[i].status = true;
 				Stat.objects[i].scores = 0;
+				
+				//Stat.objects[i].shape.setFillColor(sf::Color::White);
 				size = STONE_SIZE;
 				InitSprite(Stat.objects[i].sprite, graphicResource.stoneTexture, size);
 			}
 			else
 			{
 				Stat.objects[i].type = ObjectType::Apple;
-				Stat.objects[i].status = true;
 				size = APPLE_SIZE;
-				//
-				if (rand() % 100 < DROPOUT_APPLES_SPECIAL)
+				if (i >= TOTAL_OBJECTS - NUM_APPLES_SPECIAL)
 				{
 					Stat.objects[i].scores = SCORES_SPECIAL_APPLE;
+					//Stat.objects[i].shape.setFillColor(sf::Color::Yellow);
 					InitSprite(Stat.objects[i].sprite, graphicResource.appleSpecialTexture, size);
 				}
 				else
 				{
 					Stat.objects[i].scores = SCORES_SIMPLE_APPLE;
+					//Stat.objects[i].shape.setFillColor(sf::Color::Green);
 					InitSprite(Stat.objects[i].sprite, graphicResource.appleTexture, size);
 				}
 			}
 
-			
-			Stat.objects[i].position = GetRandomFreePosition(Stat, playerStat.playerPosition2D, size);
-			Stat.objects[i].sprite.setPosition(Stat.objects[i].position.x, Stat.objects[i].position.y);
-		}
-		return;
-	}
+			Stat.objects[i].shape.setRadius(size / 2.f);
+			Stat.objects[i].shape.setOrigin(size / 2.f, size / 2.f);
 
+			Stat.objects[i].position = GetRandomFreePosition(Stat, playerStat.playerPosition2D, size);
+			Stat.objects[i].shape.setPosition(Stat.objects[i].position.x, Stat.objects[i].position.y);
+		}
+	}
+	void InitSprite(sf::Sprite& sprite, sf::Texture& Texture, float gameObjectSize)
+	{
+		sprite.setTexture(Texture);
+		SetSpriteSize(sprite, gameObjectSize, gameObjectSize);
+		SetSpriteRelativeOrigin(sprite, 0.5f, 0.5f);
+	}
 	void DrowGameObjects(GameObject& objectStat, sf::RenderWindow& window)
 	{
 		objectStat.sprite.setPosition(objectStat.position.x, objectStat.position.y);
 		window.draw(objectStat.sprite);
 	}
-
-	int CalculationGameObjects(Game& Stat)
-	{
-		int totalObjectsCount = MIN_OBJECTS + rand() % MAX_OBJECTS;
-		numApples = static_cast<int>(totalObjectsCount * PERCENT_APPLES);
-		numStones = totalObjectsCount - numApples;
-
-		Stat.objects.clear();
-		Stat.objects.resize(totalObjectsCount);
-
-		return totalObjectsCount;
-
-	}
-	/*
-	int CalculationArrayObjects(Game& Stat)
-	{
-		int totalObjectsCount = MIN_OBJECTS + rand() % MAX_OBJECTS;
-		numApples = static_cast<int>(totalObjectsCount * PERCENT_APPLES);
-		numStones = totalObjectsCount - numApples;
-		return totalObjectsCount;
-
-	}*/
 }
