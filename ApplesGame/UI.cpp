@@ -9,7 +9,7 @@ namespace ApplesGame
 	{
 
 		uiState.scoreText.setFont(font);
-		uiState.scoreText.setCharacterSize(12);
+		uiState.scoreText.setCharacterSize(24);
 		uiState.scoreText.setFillColor(sf::Color::Yellow);
 		uiState.scoreText.setString("Scores: 0");
 
@@ -25,7 +25,7 @@ namespace ApplesGame
 		uiState.inputControlText.setFont(font);
 		uiState.inputControlText.setCharacterSize(12);
 		uiState.inputControlText.setFillColor(sf::Color::White);
-		uiState.inputControlText.setString("R - Restart, WASD - Direction, Space - Pause, Q/1,2,3,4 - GameMod");
+		uiState.inputControlText.setString("R - Restart, WASD - Direction, Space - Pause");
 
 		uiState.inputControlText.setOrigin(hintBounds.left + hintBounds.width, hintBounds.top);
 
@@ -44,15 +44,7 @@ namespace ApplesGame
 
 	void UpdateUI(UIState& uiState, const Game& game, const PlayerStat& playerStat)
 	{
-		//uiState.scoreText.setString("Scores: " + std::to_string(playerStat.playerStatistic.scores));
-		std::string scoreStr = "Scores: " + std::to_string(playerStat.playerStatistic.scores);
-
-		std::string modesStr = " | Modes: ";
-		if (game.currentMode == IsModeNone) modesStr += "{Normal}";
-		if (game.currentMode & IsGameInfinite) modesStr += "[IsGameInfinite] ";
-		if (game.currentMode & IsIncreaseSpeed) modesStr += "[IsIncreaseSpeed] ";
-		if (game.currentMode & IsIgnoringStones) modesStr += "[IsIgnoringStones] ";
-		uiState.scoreText.setString(scoreStr + modesStr);
+		uiState.scoreText.setString("Scores: " + std::to_string(playerStat.playerStatistic.scores));
 	}
 
 	void ApplesGame::DrawUI(UIState& uiState, sf::RenderWindow& window, Game& gameStat)
@@ -60,10 +52,10 @@ namespace ApplesGame
 		uiState.scoreText.setPosition(10.f, 10.f);
 		window.draw(uiState.scoreText);
 
-		uiState.inputHintText.setPosition(window.getSize().x - 210.f, 10.f);
+		uiState.inputHintText.setPosition(window.getSize().x - 100.f, 10.f);
 		window.draw(uiState.inputHintText);
 
-		uiState.inputControlText.setPosition(window.getSize().x - 210.f, 25.f);
+		uiState.inputControlText.setPosition(window.getSize().x - 100.f, 25.f);
 		window.draw(uiState.inputControlText);
 
 		uiState.gameStatusText.setPosition(window.getSize().x / 2.f, window.getSize().y / 2.f);
