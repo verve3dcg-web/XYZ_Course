@@ -7,6 +7,7 @@
 #include "Sound.h"
 #include "UI.h"
 
+
 namespace ApplesGame
 {
 bool bIsPaused = false;
@@ -39,34 +40,6 @@ void EventInput(sf::RenderWindow& window, Game& gameStat, float currentTime, Pla
                 bIsPaused = false;
                 gameStat.IsPaused = false;
             }
-            if (event.key.code == sf::Keyboard::Q)
-            {
- 
-                gameStat.currentMode++;
-
-
-                if (gameStat.currentMode > 15)
-                {
-                    gameStat.currentMode = IsModeNone;
-                }
-            }
-            // Переключение режимов
-            if (event.key.code == sf::Keyboard::Num1)
-            {
-                gameStat.currentMode ^= IsModeNone;
-            }
-            else if (event.key.code == sf::Keyboard::Num2)
-            {
-                gameStat.currentMode ^= IsGameInfinite;
-            }
-            else if (event.key.code == sf::Keyboard::Num3)
-            {
-                gameStat.currentMode ^= IsIncreaseSpeed;
-            }
-            else if (event.key.code == sf::Keyboard::Num4)
-            {
-                gameStat.currentMode ^= IsIgnoringStones;
-            }
         }
     }
 }
@@ -76,7 +49,6 @@ void EventInput(sf::RenderWindow& window, Game& gameStat, float currentTime, Pla
 int main()
 {
     using namespace ApplesGame;
-
     // Init Window
     sf::RenderWindow window(sf::VideoMode(SCREEN_WIDTH, SCREEN_HEIGHT), "Apples game");
 
@@ -96,16 +68,17 @@ int main()
     GraphicResource graphicResource;
     AudioResource audioResource;
 
-
+    // --- НАЧАЛО ВСТАВКИ ---
     sf::Font font;
-
+    // Убедитесь, что путь к шрифту правильный. Обычно в XYZ проектах это:
     if (!font.loadFromFile(RESOURCES_PATH + "Fonts/Roboto-Regular.ttf"))
     {
-
+        // Если шрифта нет, программа закроется с ошибкой, чтобы вы заметили проблему
         return -1;
     }
     UIState uiState;
     InitUI(uiState, font);
+    // --- КОНЕЦ ВСТАВКИ ---
 
     InitGame(gameStat, playerStat, graphicResource, audioResource);
 

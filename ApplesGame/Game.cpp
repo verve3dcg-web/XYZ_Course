@@ -1,12 +1,10 @@
-﻿#pragma once
+#pragma once
 #include "Game.h"
 #include "Sound.h"
-
 namespace ApplesGame
 {
     Position2D GetRandomFreePosition(const Game& Stat, const Position2D& Position2, float objectSize)
     {
-
         Position2D newPos;
         bool isOverlapping = true;
 
@@ -23,7 +21,7 @@ namespace ApplesGame
                 continue;
             }
 
-            for (int i = 0; i < Stat.objects.size(); ++i)
+            for (int i = 0; i < TOTAL_OBJECTS; ++i)
             {
 
                 if (Stat.objects[i].position.x == 0 && Stat.objects[i].position.y == 0) continue;
@@ -56,7 +54,6 @@ namespace ApplesGame
     }
     void GameUpdate(Game& Stat, float deltaTime, float currentTime, PlayerStat& playerStat, AudioResource& audio)
     {
-
         // Input handling inside update
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) playerStat.playerDirection = Direction::Right;
         else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) playerStat.playerDirection = Direction::Up;
@@ -87,70 +84,37 @@ namespace ApplesGame
             Stat.gameFinishTime = currentTime;
             PlayDeathSound(audio);
         }
-        int applesAlife = 0;
+
         // Check collisions
-        for (int i = 0; i < Stat.objects.size(); ++i)
+        for (int i = 0; i < TOTAL_OBJECTS; ++i)
         {
-            if (Stat.objects[i].status == true)
+            float objSize = (Stat.objects[i].type == ObjectType::Stone) ? STONE_SIZE : APPLE_SIZE;
+
+            if (IsOverlapping(playerStat.playerPosition2D, PLAYER_SIZE / 2.f, Stat.objects[i].position, objSize / 2.f))
             {
-                ++applesAlife;
-                float objSize = (Stat.objects[i].type == ObjectType::Stone) ? STONE_SIZE : APPLE_SIZE;
-
-                if (IsOverlapping(playerStat.playerPosition2D, PLAYER_SIZE / 2.f, Stat.objects[i].position, objSize / 2.f))
+                if (Stat.objects[i].type == ObjectType::Stone)
                 {
-                    if ((Stat.objects[i].type == ObjectType::Stone)&& !(Stat.currentMode & IsIgnoringStones))
-                    {
-                        Stat.isGameFinished = true;
-                        Stat.gameFinishTime = currentTime;
-                        PlayDeathSound(audio);
-                        break;
-                    }
-                    else if (Stat.objects[i].type == ObjectType::Apple)
-                    {
-
-                        PlayEatSound(audio);
-                        playerStat.playerStatistic.scores += Stat.objects[i].scores;
-                        playerStat.playerStatistic.numEatenApple++;
-                        Stat.objects[i].status = false;
-
-                        //check game mod Increase Speed
-                        float IncreaseSpeed = (Stat.currentMode & IsIncreaseSpeed) ? PLAYER_ACCELERATION : 0.0f;
-                        playerStat.playerSpeed += IncreaseSpeed;
-                        
-                        // Respawn apple
-                        if (Stat.currentMode & IsGameInfinite)
-                        {
-                            Stat.objects[i].position = { 0.f, 0.f };
-                            Stat.objects[i].position = GetRandomFreePosition(Stat, playerStat.playerPosition2D, APPLE_SIZE);
-                            Stat.objects[i].shape.setPosition(Stat.objects[i].position.x, Stat.objects[i].position.y);
-                            Stat.objects[i].status = true;
-                        }
-                    }
+                    Stat.isGameFinished = true;
+                    Stat.gameFinishTime = currentTime;
+                    PlayDeathSound(audio);
+                    break;
                 }
-            }
-            else
-            {
-                if (Stat.objects[i].type == ObjectType::Apple && (Stat.currentMode & IsGameInfinite))
+                else if (Stat.objects[i].type == ObjectType::Apple)
                 {
+                    PlayEatSound(audio);
+                    playerStat.playerStatistic.scores += Stat.objects[i].scores;
+                    playerStat.playerStatistic.numEatenApple++;
+                    playerStat.playerSpeed += PLAYER_ACCELERATION;
+                    
+                    
+
+                    // Respawn apple
+                    Stat.objects[i].position = { 0.f, 0.f };
                     Stat.objects[i].position = GetRandomFreePosition(Stat, playerStat.playerPosition2D, APPLE_SIZE);
-                    Stat.objects[i].sprite.setPosition(Stat.objects[i].position.x, Stat.objects[i].position.y);
-                    Stat.objects[i].status = true;
-                    applesAlife++;
+                    Stat.objects[i].shape.setPosition(Stat.objects[i].position.x, Stat.objects[i].position.y);
                 }
             }
-
         }
-            
-            
-
-        //
-        if (applesAlife == 0 && !(Stat.currentMode & IsGameInfinite))
-        {
-            Stat.isGameFinished = true;
-            Stat.gameFinishTime = currentTime;
-            PlayDeathSound(audio);
-        }
-
     }
 
     void GameDraw(Game& Stat, sf::RenderWindow& window, const sf::RectangleShape& background, PlayerStat& playerStat)
@@ -158,17 +122,9 @@ namespace ApplesGame
         window.clear();
         window.draw(background);
         DrowPlayer(playerStat, window);
-        for (int i = 0; i < Stat.objects.size(); ++i) {
-            if (Stat.objects[i].status == true)
-            {
-                Stat.objects[i].sprite.setPosition(Stat.objects[i].position.x, Stat.objects[i].position.y);
-                window.draw(Stat.objects[i].sprite);
-            }
-            else
-            {
-
-            }
-
+        for (int i = 0; i < TOTAL_OBJECTS; ++i) {
+            Stat.objects[i].sprite.setPosition(Stat.objects[i].position.x, Stat.objects[i].position.y);
+            window.draw(Stat.objects[i].sprite);
         }
 
         
