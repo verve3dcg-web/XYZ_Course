@@ -45,6 +45,7 @@ namespace ApplesGame
         InitGraphicResource(graphicResource);
         InitAudio(audioResource);
         RestartGame(Stat, playerStat, graphicResource);
+        InitLeaderboardData();
 
     }
     void RestartGame(Game& Stat, PlayerStat& playerStat, GraphicResource& graphicResource)

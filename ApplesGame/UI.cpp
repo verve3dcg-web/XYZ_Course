@@ -1,12 +1,19 @@
 ﻿#include "UI.h"
 #include "Game.h"
 #include "Player.h"
+#include "Leaderboard.h"
 #include <string>
 
 namespace ApplesGame
 {
 	void InitUI(UIState& uiState, const sf::Font& font)
 	{
+
+		uiState.leaderboardText.setFont(font);
+		uiState.leaderboardText.setCharacterSize(20);
+		uiState.leaderboardText.setFillColor(sf::Color::White);
+		uiState.leaderboardText.setString("");
+		uiState.leaderboardText.setPosition(SCREEN_WIDTH / 2.f - 100.f, SCREEN_HEIGHT / 2.f + 50.f);
 
 		uiState.scoreText.setFont(font);
 		uiState.scoreText.setCharacterSize(12);
@@ -73,6 +80,9 @@ namespace ApplesGame
 			uiState.gameStatusText.setFillColor(sf::Color::Yellow);
 			uiState.gameStatusText.setString("GAME OVER");
 			window.draw(uiState.gameStatusText);
+
+			uiState.leaderboardText.setString(GetLeaderboardString());
+			window.draw(uiState.leaderboardText);
 		}
 		if (gameStat.IsPaused)
 		{
