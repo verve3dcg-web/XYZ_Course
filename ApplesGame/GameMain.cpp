@@ -6,6 +6,7 @@
 #include "Game.h"
 #include "Sound.h"
 #include "UI.h"
+#include "Leaderboard.h"
 
 namespace ApplesGame
 {
@@ -139,6 +140,13 @@ int main()
         else if (gameStat.isGameFinished)
         {
             background.setFillColor(sf::Color::Red);
+
+            if (!gameStat.isLeaderboardUpdated)
+            {
+                UpdateLeaderboard(playerStat.playerStatistic.scores);
+                gameStat.isLeaderboardUpdated = true;
+            }
+
             if (currentTime - gameStat.gameFinishTime > PAUSE_LENGTH)
             {
                 RestartGame(gameStat, playerStat, graphicResource);
@@ -146,6 +154,8 @@ int main()
         }
         else
         {
+            gameStat.isLeaderboardUpdated = false;
+
             background.setFillColor(sf::Color::Black);
             if (!gameStat.IsPaused)
             {

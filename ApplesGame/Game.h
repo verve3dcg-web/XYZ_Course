@@ -6,6 +6,7 @@
 #include "player.h"
 #include "Graphic.h"
 #include "Sound.h"
+#include "Leaderboard.h"
 
 namespace ApplesGame
 {
@@ -24,7 +25,7 @@ namespace ApplesGame
         GameModeMask currentMode = IsModeNone;
         //GameObject objects[TOTAL_OBJECTS];
         std::vector<GameObject> objects;
-
+        bool isLeaderboardUpdated = false;
         bool isGameFinished = false;
         bool IsPaused = false;
         bool isRestarted = false;
@@ -32,6 +33,8 @@ namespace ApplesGame
         float restartTime = 0.f;
     };
     
+
+
  
     Position2D GetRandomFreePosition(const Game& Stat, const Position2D& Position2, float objectSize);
     void InitGame(Game& Stat, PlayerStat& playerStat, GraphicResource& graphicResource, AudioResource& audioResource);

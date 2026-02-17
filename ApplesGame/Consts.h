@@ -4,6 +4,10 @@ namespace ApplesGame
 	enum class Direction { Right = 0, Up, Left, Down };
 	enum class ObjectType { Apple, Stone };
 
+	// leaderboard data
+	const int LEADERBOARD_MIN = 20;
+	const int LEADERBOARD_MAX = 150;
+
 	const std::string RESOURCES_PATH = "Resources/";
 
 	const int SCREEN_WIDTH = 800;
@@ -41,6 +45,6 @@ namespace ApplesGame
 	const std::string MUSIC_THEME_PATH = RESOURCES_PATH + "Music.ogg";
 
 	// Game State constants
-	const float PAUSE_LENGTH = 2.f;
+	const float PAUSE_LENGTH = 6.f;
 }
 

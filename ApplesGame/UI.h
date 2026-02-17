@@ -13,6 +13,7 @@ namespace ApplesGame
 		sf::Text inputHintText;
 		sf::Text inputControlText;
 		sf::Text gameStatusText;
+		sf::Text leaderboardText;
 	};
 
 
